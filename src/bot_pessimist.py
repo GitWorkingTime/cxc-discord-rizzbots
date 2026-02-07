@@ -34,14 +34,21 @@ class PessimistBot(commands.Bot):
             channel_setup = session.get_channel_setup(guild_id)
             
             if channel_setup and str(message.channel.id) == channel_setup.general_channel_id:
-                # Buffer this message
+                # Buffer this message WITH USER INFO
                 message_data = {
                     'content': message.content,
                     'author_name': message.author.name,
                     'author_id': str(message.author.id),
-                    'timpestamp': message.created_at.isoformat()
+                    'timestamp': message.created_at.isoformat()
                 }
-
+                
+                # Log the message data
+                logger.debug(
+                    f"Pessimist bot buffered | Guild: {guild_id} | "
+                    f"User: {message_data['author_name']} (ID: {message_data['author_id']}) | "
+                    f"Content: {message_data['content'][:50]}{'...' if len(message_data['content']) > 50 else ''}"
+                )
+                
                 orchestrator.add_message(guild_id, str(message.channel.id), message_data)
         
         await self.process_commands(message)

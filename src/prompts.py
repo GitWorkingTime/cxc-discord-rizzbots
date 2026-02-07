@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 
 def get_setup_prompt(perspective: str, username: str) -> str:
@@ -29,7 +29,6 @@ Your role:
 
 def get_turn_prompt(perspective: str, turn_number: int, message_history: str) -> str:
     """Generate prompt for a debate turn."""
-    # prefix = "Optimist" if perspective == "optimist" else "Pessimist"
     
     return f"""Turn {turn_number}.
 
@@ -70,13 +69,31 @@ Pessimist Advice:
 Each piece should be specific, actionable, and based on the debate. Keep it PG and respectful."""
 
 
-def get_user_messages_context(messages: List[str], username: str) -> str:
-    """Format user's Discord messages for context."""
-    if not messages:
-        return f"{username} has no recent messages to analyze."
+def get_user_messages_context(messages: List[Dict[str, str]], username: str) -> str:
+    """
+    Format user's Discord messages for context.
     
-    formatted = f"Recent messages from {username}:\n"
-    for i, msg in enumerate(messages[-25:], 1):  # Last 25 messages
-        formatted += f"{i}. {msg}\n"
+    Args:
+        messages: List of message dicts with 'content', 'author_name', 'author_id', 'timestamp'
+        username: The target username being analyzed
+        
+    Returns:
+        Formatted string showing the conversation with clear user attribution
+    """
+    if not messages:
+        return f"No recent messages to analyze."
+    
+    # Format as conversation with user attribution
+    formatted = f"Recent Discord conversation (analyzing {username}):\n\n"
+    
+    for msg in messages[-25:]:  # Last 25 messages
+        author_name = msg.get('author_name', 'Unknown')
+        author_id = msg.get('author_id', '000000')
+        content = msg.get('content', '')
+        
+        # Format: [User: name (ID: id)]: message
+        formatted += f"[User: {author_name} (ID: {author_id})]: {content}\n"
+    
+    formatted += f"\n(Focus your analysis on {username}'s messages and their interactions)"
     
     return formatted
