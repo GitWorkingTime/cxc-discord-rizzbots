@@ -60,11 +60,18 @@ class OptimistBot(commands.Bot):
                     'content': message.content,
                     'author_name': message.author.name,
                     'author_id': str(message.author.id),
-                    'timpestamp': message.created_at.isoformat()
+                    'timestamp': message.created_at.isoformat()
                 }
-
-                orchestrator.add_message(guild_id, str(message.channel.id), message_data)
                 
+                # Log the message data
+                logger.debug(
+                    f"Optimist bot buffered | Guild: {guild_id} | "
+                    f"User: {message_data['author_name']} (ID: {message_data['author_id']}) | "
+                    f"Content: {message_data['content'][:50]}{'...' if len(message_data['content']) > 50 else ''}"
+                )
+                
+                orchestrator.add_message(guild_id, str(message.channel.id), message_data)
+        
         await self.process_commands(message)
 
 
@@ -77,8 +84,8 @@ def create_optimist_bot() -> OptimistBot:
         player1="First player to analyze",
         player2="Second player to analyze",
         general="General chat channel",
-        player1_room="Rizzer 1's private room",
-        player2_room="Rizzer 2's private room",
+        player1_room="Player 1's private room",
+        player2_room="Player 2's private room",
         optimist_assistant="Optimist assistant ID",
         pessimist_assistant="Pessimist assistant ID"
     )
