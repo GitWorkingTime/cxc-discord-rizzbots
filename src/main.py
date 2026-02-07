@@ -44,10 +44,15 @@ async def main():
     
     logger.info("Starting both bots...")
     
-    # Run both bots concurrently
-    async with asyncio.TaskGroup() as tg:
-        tg.create_task(optimist_bot.start(optimist_token))
-        tg.create_task(pessimist_bot.start(pessimist_token))
+    try:
+        # Run both bots concurrently
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(optimist_bot.start(optimist_token))
+            tg.create_task(pessimist_bot.start(pessimist_token))
+    finally:
+        # Clean up Backboard client
+        from backboard_client import backboard
+        await backboard.close()
 
 
 if __name__ == "__main__":

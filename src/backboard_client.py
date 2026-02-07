@@ -1,109 +1,108 @@
 import os
 import asyncio
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
 
 class BackboardClient:
-    """Client for interacting with Backboard API (OpenAI-compatible)."""
+    """Client for interacting with Backboard Responses API."""
     
     def __init__(self):
         self.api_key = os.getenv('BACKBOARD_API_KEY')
-        self.base_url = os.getenv('BACKBOARD_BASE_URL', 'https://api.openai.com/v1')
+        self.base_url = os.getenv('BACKBOARD_BASE_URL', 'https://api.backboard.io')
+        self.model = os.getenv('BACKBOARD_MODEL', 'gpt-4o-mini')
         
         if not self.api_key:
             raise ValueError("BACKBOARD_API_KEY not set")
         
         try:
-            from openai import AsyncOpenAI
-            self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+            import aiohttp
+            self.aiohttp = aiohttp
+            self.session: Optional[aiohttp.ClientSession] = None
         except ImportError:
-            raise ImportError("openai package required. Install with: pip install openai")
+            raise ImportError("aiohttp package required. Install with: pip install aiohttp")
     
-    async def create_thread(self) -> str:
-        """Create a new thread and return thread_id."""
-        thread = await self.client.beta.threads.create()
-        return thread.id
+    async def _get_session(self) -> 'aiohttp.ClientSession':
+        """Get or create aiohttp session."""
+        if self.session is None or self.session.closed:
+            self.session = self.aiohttp.ClientSession()
+        return self.session
     
-    async def add_message(self, thread_id: str, content: str, role: str = "user") -> None:
-        """Add a message to a thread."""
-        await self.client.beta.threads.messages.create(
-            thread_id=thread_id,
-            role=role,
-            content=content
-        )
+    async def close(self):
+        """Close the client session."""
+        if self.session and not self.session.closed:
+            await self.session.close()
     
-    async def run_assistant(
-        self, 
-        thread_id: str, 
-        assistant_id: str, 
-        timeout: float = 60.0
-    ) -> str:
+    async def create_conversation(self, system_prompt: str, initial_messages: List[Dict[str, str]] = None) -> List[Dict[str, str]]:
         """
-        Run an assistant on a thread and wait for completion.
-        Returns the assistant's response text.
-        Raises TimeoutError if timeout is exceeded.
+        Create a conversation context.
+        Returns a message history list.
         """
-        run = await self.client.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=assistant_id
-        )
+        messages = []
         
-        response = await self.wait_for_run(thread_id, run.id, timeout=timeout)
-        return response
+        # Add system message
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        
+        # Add initial messages
+        if initial_messages:
+            messages.extend(initial_messages)
+        
+        return messages
     
-    async def wait_for_run(
-        self, 
-        thread_id: str, 
-        run_id: str, 
+    async def send_message(
+        self,
+        messages: List[Dict[str, str]],
+        user_message: str,
         timeout: float = 60.0,
-        poll_interval: float = 1.0
-    ) -> str:
+        max_tokens: int = 500
+    ) -> tuple[str, List[Dict[str, str]]]:
         """
-        Wait for a run to complete and return the assistant's message.
-        Raises TimeoutError if timeout is exceeded.
+        Send a message and get response using Backboard Responses API.
+        Returns (response_text, updated_messages).
         """
-        start_time = asyncio.get_event_loop().time()
+        session = await self._get_session()
         
-        while True:
-            elapsed = asyncio.get_event_loop().time() - start_time
-            if elapsed > timeout:
-                try:
-                    await self.client.beta.threads.runs.cancel(
-                        thread_id=thread_id,
-                        run_id=run_id
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to cancel run {run_id}: {e}")
-                raise TimeoutError(f"Run {run_id} exceeded timeout of {timeout}s")
-            
-            run = await self.client.beta.threads.runs.retrieve(
-                thread_id=thread_id,
-                run_id=run_id
-            )
-            
-            if run.status == "completed":
-                messages = await self.client.beta.threads.messages.list(
-                    thread_id=thread_id,
-                    order="desc",
-                    limit=1
-                )
+        # Add user message to conversation
+        updated_messages = messages + [{"role": "user", "content": user_message}]
+        
+        # Prepare request
+        url = f"{self.base_url}/responses"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": self.model,
+            "messages": updated_messages,
+            "max_tokens": max_tokens
+        }
+        
+        try:
+            async with session.post(url, headers=headers, json=payload, timeout=timeout) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise RuntimeError(f"Backboard API error {response.status}: {error_text}")
                 
-                if messages.data:
-                    content = messages.data[0].content[0].text.value
-                    return content
-                else:
-                    raise RuntimeError(f"Run {run_id} completed but no messages found")
-            
-            elif run.status in ["failed", "cancelled", "expired"]:
-                error_msg = f"Run {run_id} ended with status: {run.status}"
-                if hasattr(run, 'last_error') and run.last_error:
-                    error_msg += f" - {run.last_error}"
-                raise RuntimeError(error_msg)
-            
-            await asyncio.sleep(poll_interval)
+                data = await response.json()
+                
+                # Extract assistant response
+                assistant_message = data['choices'][0]['message']['content']
+                
+                # Add assistant response to conversation
+                updated_messages.append({"role": "assistant", "content": assistant_message})
+                
+                return assistant_message, updated_messages
+                
+        except asyncio.TimeoutError:
+            raise TimeoutError(f"Request exceeded timeout of {timeout}s")
+        except Exception as e:
+            logger.error(f"Backboard API request failed: {e}")
+            raise
 
 
 # Global client instance

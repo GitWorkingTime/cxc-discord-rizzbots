@@ -1,14 +1,15 @@
 from typing import Dict, Optional
 from dataclasses import dataclass, field
+from typing import List, Dict, Any
 
 
 @dataclass
 class UserSession:
-    """Stores Backboard thread IDs and assistant IDs for a user."""
-    optimist_thread: str
-    pessimist_thread: str
-    optimist_assistant_id: str
-    pessimist_assistant_id: str
+    """Stores conversation context for a user's debate bots."""
+    optimist_messages: List[Dict[str, str]] = field(default_factory=list)
+    pessimist_messages: List[Dict[str, str]] = field(default_factory=list)
+    optimist_assistant_id: str = ""
+    pessimist_assistant_id: str = ""
 
 
 @dataclass
@@ -38,15 +39,13 @@ class Session:
     def set_user_session(
         self,
         user_id: str,
-        optimist_thread: str,
-        pessimist_thread: str,
-        optimist_assistant_id: str,
-        pessimist_assistant_id: str
+        optimist_assistant_id: str = "",
+        pessimist_assistant_id: str = ""
     ) -> None:
         """Set session for a user."""
         self.users[user_id] = UserSession(
-            optimist_thread=optimist_thread,
-            pessimist_thread=pessimist_thread,
+            optimist_messages=[],
+            pessimist_messages=[],
             optimist_assistant_id=optimist_assistant_id,
             pessimist_assistant_id=pessimist_assistant_id
         )
