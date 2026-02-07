@@ -77,8 +77,8 @@ def create_optimist_bot() -> OptimistBot:
         player1="First player to analyze",
         player2="Second player to analyze",
         general="General chat channel",
-        player1_room="Player 1's private room",
-        player2_room="Player 2's private room",
+        player1_room="Rizzer 1's private room",
+        player2_room="Rizzer 2's private room",
         optimist_assistant="Optimist assistant ID",
         pessimist_assistant="Pessimist assistant ID"
     )
