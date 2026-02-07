@@ -7,6 +7,8 @@ from collections import deque
 if TYPE_CHECKING:
     import discord
 
+from backboard_client import backboard
+
 logger = logging.getLogger(__name__)
 
 class Orchestrator:
@@ -121,6 +123,96 @@ class Orchestrator:
     def update_analyze_timestamp(self) -> None:
         """Update the last analysis timestamp to now."""
         self.last_analyze_timestamp = time.time()
+    
+    async def run_debate(
+        self,
+        guild_id: str,
+        channel_id: str,
+        target_username: str,
+        target_user_id: str,
+        optimist_assistant_id: str,
+        pessimist_assistant_id: str,
+        debate_channel: 'discord.TextChannel'
+    ) -> None:
+        """
+        Run a debate between Optimist and Pessimist about a user's messages.
+        
+        Args:
+            guild_id: Discord guild ID
+            channel_id: Channel being analyzed
+            target_username: Username being analyzed
+            target_user_id: User ID being analyzed
+            optimist_assistant_id: Backboard assistant ID for Optimist
+            pessimist_assistant_id: Backboard assistant ID for Pessimist
+            debate_channel: Discord channel to post debate
+        """
+        async with self.analyze_lock:
+            # Get buffered messages
+            messages = self.get_messages(guild_id, channel_id)
+            
+            if not messages:
+                logger.warning(f"No messages to analyze for guild {guild_id}")
+                return
+            
+            # Format messages for AI
+            formatted_context = self.format_messages_for_ai(messages, target_user_id)
+            
+            # Count target user's messages
+            user_message_count = self.get_user_message_count(guild_id, channel_id, target_user_id)
+            
+            if user_message_count < 3:
+                logger.info(f"Only {user_message_count} messages from {target_username}, skipping analysis")
+                await debate_channel.send(f"⚠️ Not enough messages from {target_username} to analyze (need at least 3)")
+                return
+            
+            logger.info(f"Analyzing {user_message_count} messages from {target_username}")
+            
+            try:
+                # Create threads for both agents
+                optimist_thread = await backboard.create_thread(optimist_assistant_id)
+                pessimist_thread = await backboard.create_thread(pessimist_assistant_id)
+                
+                # Prepare the analysis prompt
+                analysis_prompt = f"""Here are recent Discord messages from the server:
+
+{formatted_context}
+
+Target user for analysis: {target_username} (ID: {target_user_id})
+Total messages from target user: {user_message_count}
+
+Provide your analysis following your assigned perspective."""
+                
+                # Get responses from both agents
+                optimist_response = await backboard.send_message(
+                    thread_id=optimist_thread,
+                    content=analysis_prompt,
+                    timeout=30.0
+                )
+                
+                pessimist_response = await backboard.send_message(
+                    thread_id=pessimist_thread,
+                    content=analysis_prompt,
+                    timeout=30.0
+                )
+                
+                # Post responses to Discord
+                if optimist_response:
+                    await self.post_as_optimist(debate_channel, optimist_response.strip())
+                
+                # Small delay between posts for natural conversation flow
+                await asyncio.sleep(1.5)
+                
+                if pessimist_response:
+                    await self.post_as_pessimist(debate_channel, pessimist_response.strip())
+                
+                # Update timestamp
+                self.update_analyze_timestamp()
+                
+                logger.info(f"Debate completed for {target_username}")
+                
+            except Exception as e:
+                logger.error(f"Error during debate: {e}")
+                await debate_channel.send(f"⚠️ Analysis error: {str(e)}")
     
     async def post_as_optimist(self, channel: 'discord.TextChannel', content: str) -> None:
         """Post a message using the Optimist bot."""
