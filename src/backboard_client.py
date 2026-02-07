@@ -1,6 +1,6 @@
 import os
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,15 +12,9 @@ class BackboardClient:
     def __init__(self):
         self.api_key = os.getenv('BACKBOARD_API_KEY')
         self.base_url = os.getenv('BACKBOARD_BASE_URL', 'https://api.openai.com/v1')
-        self.optimist_assistant_id = os.getenv('OPTIMIST_ASSISTANT_ID')
-        self.pessimist_assistant_id = os.getenv('PESSIMIST_ASSISTANT_ID')
         
         if not self.api_key:
             raise ValueError("BACKBOARD_API_KEY not set")
-        if not self.optimist_assistant_id:
-            raise ValueError("OPTIMIST_ASSISTANT_ID not set")
-        if not self.pessimist_assistant_id:
-            raise ValueError("PESSIMIST_ASSISTANT_ID not set")
         
         try:
             from openai import AsyncOpenAI
@@ -110,3 +104,7 @@ class BackboardClient:
                 raise RuntimeError(error_msg)
             
             await asyncio.sleep(poll_interval)
+
+
+# Global client instance
+backboard = BackboardClient()

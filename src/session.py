@@ -1,44 +1,78 @@
-import asyncio
 from typing import Dict, Optional
 from dataclasses import dataclass, field
-import time
 
 
 @dataclass
-class AnalysisSession:
-    """Stores session data for debate analysis."""
+class UserSession:
+    """Stores Backboard thread IDs and assistant IDs for a user."""
+    optimist_thread: str
+    pessimist_thread: str
+    optimist_assistant_id: str
+    pessimist_assistant_id: str
+
+
+@dataclass
+class ChannelSetup:
+    """Stores Discord channel configuration."""
+    player1_id: str
+    player2_id: str
+    general_channel_id: str
+    player1_room_id: str
+    player2_room_id: str
+
+
+@dataclass
+class Session:
+    """Global session data for debate analysis."""
     
-    user_threads: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    last_analyze_timestamp: float = 0.0
-    analyze_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    # User sessions: user_id -> UserSession
+    users: Dict[str, UserSession] = field(default_factory=dict)
     
-    def can_analyze(self, cooldown_seconds: float = 60.0) -> bool:
-        """Check if enough time has passed since last analysis."""
-        current_time = time.time()
-        return (current_time - self.last_analyze_timestamp) >= cooldown_seconds
+    # Channel setup per guild: guild_id -> ChannelSetup
+    channels: Dict[str, ChannelSetup] = field(default_factory=dict)
     
-    def time_until_ready(self, cooldown_seconds: float = 60.0) -> float:
-        """Return seconds until next analysis is allowed."""
-        current_time = time.time()
-        elapsed = current_time - self.last_analyze_timestamp
-        remaining = cooldown_seconds - elapsed
-        return max(0.0, remaining)
+    def get_user_session(self, user_id: str) -> Optional[UserSession]:
+        """Get session for a user."""
+        return self.users.get(user_id)
     
-    def update_analyze_timestamp(self) -> None:
-        """Update the last analysis timestamp to now."""
-        self.last_analyze_timestamp = time.time()
+    def set_user_session(
+        self,
+        user_id: str,
+        optimist_thread: str,
+        pessimist_thread: str,
+        optimist_assistant_id: str,
+        pessimist_assistant_id: str
+    ) -> None:
+        """Set session for a user."""
+        self.users[user_id] = UserSession(
+            optimist_thread=optimist_thread,
+            pessimist_thread=pessimist_thread,
+            optimist_assistant_id=optimist_assistant_id,
+            pessimist_assistant_id=pessimist_assistant_id
+        )
     
-    def get_threads(self, user_id: str) -> Optional[Dict[str, str]]:
-        """Get thread IDs for a user."""
-        return self.user_threads.get(user_id)
+    def get_channel_setup(self, guild_id: str) -> Optional[ChannelSetup]:
+        """Get channel setup for a guild."""
+        return self.channels.get(guild_id)
     
-    def set_threads(self, user_id: str, optimist_thread: str, pessimist_thread: str) -> None:
-        """Set thread IDs for a user."""
-        self.user_threads[user_id] = {
-            "optimist": optimist_thread,
-            "pessimist": pessimist_thread
-        }
+    def set_channel_setup(
+        self,
+        guild_id: str,
+        player1_id: str,
+        player2_id: str,
+        general_channel_id: str,
+        player1_room_id: str,
+        player2_room_id: str
+    ) -> None:
+        """Set channel setup for a guild."""
+        self.channels[guild_id] = ChannelSetup(
+            player1_id=player1_id,
+            player2_id=player2_id,
+            general_channel_id=general_channel_id,
+            player1_room_id=player1_room_id,
+            player2_room_id=player2_room_id
+        )
 
 
 # Global session instance
-session = AnalysisSession()
+session = Session()

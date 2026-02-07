@@ -80,7 +80,7 @@ def get_user_messages_context(messages: List[str], username: str) -> str:
         return f"{username} has no recent messages to analyze."
     
     formatted = f"Recent messages from {username}:\n"
-    for i, msg in enumerate(messages[-20:], 1):  # Last 20 messages
+    for i, msg in enumerate(messages[-25:], 1):  # Last 25 messages
         formatted += f"{i}. {msg}\n"
     
     return formatted
