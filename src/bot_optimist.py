@@ -321,7 +321,6 @@ async def run_true_alternation(
         perspective = "optimist" if is_optimist_turn else "pessimist"
         current_thread = user_session.optimist_thread_id if is_optimist_turn else user_session.pessimist_thread_id
         other_thread = user_session.pessimist_thread_id if is_optimist_turn else user_session.optimist_thread_id
-        prefix = "Optimist:" if is_optimist_turn else "Pessimist:"
         
         # Build debate history
         debate_history = "\n".join(debate_lines) if debate_lines else "No debate yet."
@@ -338,25 +337,16 @@ async def run_true_alternation(
                 memory="Auto"
             )
             
-            # Extract the line (should start with "Optimist:" or "Pessimist:")
+            # Extract first non-empty line from response
             lines = response.strip().split('\n')
-            
-            # Find line starting with correct prefix
             debate_line = None
             for line in lines:
-                if line.strip().startswith(prefix):
+                if line.strip():
                     debate_line = line.strip()
                     break
             
             if not debate_line:
-                # Fallback: use first non-empty line and add prefix
-                for line in lines:
-                    if line.strip():
-                        debate_line = f"{prefix} {line.strip()}"
-                        break
-            
-            if not debate_line:
-                debate_line = f"{prefix} [No response]"
+                debate_line = "[No response]"
             
             # Enforce word limit (18 words)
             words = debate_line.split()
@@ -381,12 +371,12 @@ async def run_true_alternation(
             
         except TimeoutError as e:
             logger.error(f"Turn {turn} timeout: {e}")
-            debate_line = f"{prefix} [Timeout]"
+            debate_line = "[Timeout]"
             debate_lines.append(debate_line)
             await orchestrator.post_as_optimist(output_channel, f"⚠️ Turn {turn} timed out")
         except Exception as e:
             logger.error(f"Turn {turn} error: {e}")
-            debate_line = f"{prefix} [Error]"
+            debate_line = "[Error]"
             debate_lines.append(debate_line)
             await orchestrator.post_as_optimist(output_channel, f"⚠️ Turn {turn} error: {str(e)}")
     
