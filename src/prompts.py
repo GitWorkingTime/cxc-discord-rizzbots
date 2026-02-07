@@ -29,15 +29,14 @@ Your role:
 
 def get_turn_prompt(perspective: str, turn_number: int, message_history: str) -> str:
     """Generate prompt for a debate turn."""
-    prefix = "Optimist" if perspective == "optimist" else "Pessimist"
+    # prefix = "Optimist" if perspective == "optimist" else "Pessimist"
     
     return f"""Turn {turn_number}.
 
 Previous debate:
 {message_history}
 
-Respond with EXACTLY one line:
-{prefix}: [your point in maximum 18 words]
+Respond with EXACTLY one line: [your point in maximum 18 words]
 
 Be direct and specific. Reference the user's actual messages."""
 
