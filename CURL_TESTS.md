@@ -2,10 +2,8 @@
 
 ## Test 1: Create a thread
 ```bash
-curl -X POST "https://api.openai.com/v1/threads" \
-  -H "Authorization: Bearer YOUR_BACKBOARD_API_KEY" \
-  -H "Content-Type: application/json" \
-  -H "OpenAI-Beta: assistants=v2"
+curl -X GET "https://app.backboard.io/api/threads" \
+  -H "X-API-Key: YOUR_BACKBOARD_API_KEY"
 ```
 
 Expected response:
@@ -20,14 +18,10 @@ Expected response:
 
 ## Test 2: Add a message to thread
 ```bash
-curl -X POST "https://api.openai.com/v1/threads/THREAD_ID/messages" \
-  -H "Authorization: Bearer YOUR_BACKBOARD_API_KEY" \
-  -H "Content-Type: application/json" \
-  -H "OpenAI-Beta: assistants=v2" \
-  -d '{
-    "role": "user",
-    "content": "Hello, this is a test message."
-  }'
+curl -X POST "https://app.backboard.io/api/threads/THREAD_ID/messages" \
+  -H "X-API-Key: YOUR_BACKBOARD_API_KEY" \
+  -F 'content=Hello, this is a test message.' \
+  -F 'send_to_llm=true'
 ```
 
 Expected response:
@@ -42,9 +36,8 @@ Expected response:
 
 ## Test 3: List messages in thread
 ```bash
-curl -X GET "https://api.openai.com/v1/threads/THREAD_ID/messages" \
-  -H "Authorization: Bearer YOUR_BACKBOARD_API_KEY" \
-  -H "OpenAI-Beta: assistants=v2"
+curl -X GET "https://app.backboard.io/api/threads/THREAD_ID" \
+  -H "X-API-Key: YOUR_BACKBOARD_API_KEY"
 ```
 
 Expected response:
@@ -63,13 +56,10 @@ Expected response:
 
 ## Test 4: Create a run (with assistant)
 ```bash
-curl -X POST "https://api.openai.com/v1/threads/THREAD_ID/runs" \
-  -H "Authorization: Bearer YOUR_BACKBOARD_API_KEY" \
+curl -X POST "https://app.backboard.io/api/assistants/ASSISTANT_ID/threads" \
+  -H "X-API-Key: YOUR_BACKBOARD_API_KEY" \
   -H "Content-Type: application/json" \
-  -H "OpenAI-Beta: assistants=v2" \
-  -d '{
-    "assistant_id": "asst_YOUR_ASSISTANT_ID"
-  }'
+  -d '{}'
 ```
 
 Expected response:
@@ -84,9 +74,10 @@ Expected response:
 
 ## Test 5: Check run status
 ```bash
-curl -X GET "https://api.openai.com/v1/threads/THREAD_ID/runs/RUN_ID" \
-  -H "Authorization: Bearer YOUR_BACKBOARD_API_KEY" \
-  -H "OpenAI-Beta: assistants=v2"
+curl -X POST "https://app.backboard.io/api/threads/THREAD_ID/runs/RUN_ID/submit-tool-outputs" \
+  -H "X-API-Key: YOUR_BACKBOARD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"tool_outputs":[{"tool_call_id":"","output":""}]}'
 ```
 
 Expected response:
@@ -139,22 +130,18 @@ Replace YOUR_BACKBOARD_API_KEY with your actual key:
 export BACKBOARD_API_KEY="sk-..."
 
 # Create thread and capture ID
-THREAD_ID=$(curl -s -X POST "https://api.openai.com/v1/threads" \
-  -H "Authorization: Bearer $BACKBOARD_API_KEY" \
-  -H "Content-Type: application/json" \
-  -H "OpenAI-Beta: assistants=v2" | grep -o '"id":"thread_[^"]*"' | cut -d'"' -f4)
+THREAD_ID=$(curl -s -X GET "https://app.backboard.io/api/threads" \
+  -H "X-API-Key: $BACKBOARD_API_KEY" | grep -o '"thread_id":"[^"]*"' | head -n1 | cut -d'"' -f4)
 
 echo "Created thread: $THREAD_ID"
 
 # Add message
-curl -X POST "https://api.openai.com/v1/threads/$THREAD_ID/messages" \
-  -H "Authorization: Bearer $BACKBOARD_API_KEY" \
-  -H "Content-Type: application/json" \
-  -H "OpenAI-Beta: assistants=v2" \
-  -d '{"role": "user", "content": "Test message"}'
+curl -X POST "https://app.backboard.io/api/threads/$THREAD_ID/messages" \
+  -H "X-API-Key: $BACKBOARD_API_KEY" \
+  -F 'content=Test message' \
+  -F 'send_to_llm=true'
 
 # List messages
-curl -X GET "https://api.openai.com/v1/threads/$THREAD_ID/messages" \
-  -H "Authorization: Bearer $BACKBOARD_API_KEY" \
-  -H "OpenAI-Beta: assistants=v2"
+curl -X GET "https://app.backboard.io/api/threads/$THREAD_ID" \
+  -H "X-API-Key: $BACKBOARD_API_KEY"
 ```

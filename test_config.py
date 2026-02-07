@@ -17,8 +17,8 @@ async def test_backboard():
     print("\n=== Testing Backboard Responses API ===\n")
     
     api_key = os.getenv('BACKBOARD_API_KEY')
-    base_url = os.getenv('BACKBOARD_BASE_URL', 'https://api.backboard.io')
-    model = os.getenv('BACKBOARD_MODEL', 'gpt-4o-mini')
+    base_url = os.getenv('BACKBOARD_BASE_URL', 'https://app.backboard.io/api')
+    model = os.getenv('BACKBOARD_MODEL', 'gpt-4o')
     
     if not api_key:
         print("❌ BACKBOARD_API_KEY not set in .env")
@@ -30,37 +30,27 @@ async def test_backboard():
     try:
         import aiohttp
         
-        # Test: Send a simple request
-        print("\nTest: Sending a test request...")
+        # Test: List threads to validate API key + connectivity
+        print("\nTest: Listing threads...")
         
-        url = f"{base_url}/responses"
+        url = f"{base_url}/threads"
         headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "X-API-Key": api_key
         }
         
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "Say 'test successful' if you can read this."}
-            ],
-            "max_tokens": 50
-        }
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload, timeout=30) as response:
+        session = aiohttp.ClientSession()
+        try:
+            async with session.get(url, headers=headers, timeout=30) as response:
                 if response.status != 200:
                     error_text = await response.text()
                     print(f"❌ API request failed with status {response.status}")
                     print(f"Error: {error_text}")
                     return False
                 
-                data = await response.json()
-                assistant_message = data['choices'][0]['message']['content']
-                
-                print(f"✅ Response received: {assistant_message}")
-                print(f"✅ Backboard Responses API is working correctly")
+                await response.json()
+                print(f"✅ Backboard API is working correctly")
+        finally:
+            await session.close()
                 
         return True
         

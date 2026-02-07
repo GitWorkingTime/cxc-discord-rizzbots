@@ -273,19 +273,29 @@ async def run_true_alternation(
     # Setup context
     context = get_user_messages_context(user_messages, username)
     
-    # Initialize both conversations with setup prompts
+    # Initialize both threads with setup prompts
     setup_optimist = get_setup_prompt("optimist", username)
     setup_pessimist = get_setup_prompt("pessimist", username)
-    
-    # Create initial conversation contexts
-    user_session.optimist_messages = await backboard.create_conversation(
-        system_prompt=setup_optimist,
-        initial_messages=[{"role": "user", "content": context}]
+
+    user_session.optimist_thread_id = await backboard.create_thread(
+        user_session.optimist_assistant_id
     )
-    
-    user_session.pessimist_messages = await backboard.create_conversation(
-        system_prompt=setup_pessimist,
-        initial_messages=[{"role": "user", "content": context}]
+    user_session.pessimist_thread_id = await backboard.create_thread(
+        user_session.pessimist_assistant_id
+    )
+
+    # Seed context without invoking the LLM
+    await backboard.send_message(
+        thread_id=user_session.optimist_thread_id,
+        content=f"{setup_optimist}\n\n{context}",
+        send_to_llm=False,
+        memory="off"
+    )
+    await backboard.send_message(
+        thread_id=user_session.pessimist_thread_id,
+        content=f"{setup_pessimist}\n\n{context}",
+        send_to_llm=False,
+        memory="off"
     )
     
     # Run debate turns
@@ -295,8 +305,8 @@ async def run_true_alternation(
         # Determine who speaks this turn
         is_optimist_turn = (turn % 2 == 0)
         perspective = "optimist" if is_optimist_turn else "pessimist"
-        current_messages = user_session.optimist_messages if is_optimist_turn else user_session.pessimist_messages
-        other_messages = user_session.pessimist_messages if is_optimist_turn else user_session.optimist_messages
+        current_thread = user_session.optimist_thread_id if is_optimist_turn else user_session.pessimist_thread_id
+        other_thread = user_session.pessimist_thread_id if is_optimist_turn else user_session.optimist_thread_id
         prefix = "Optimist:" if is_optimist_turn else "Pessimist:"
         
         # Build debate history
@@ -307,18 +317,12 @@ async def run_true_alternation(
         
         # Send message and get response
         try:
-            response, updated_messages = await backboard.send_message(
-                messages=current_messages,
-                user_message=turn_prompt,
+            response = await backboard.send_message(
+                thread_id=current_thread,
+                content=turn_prompt,
                 timeout=TURN_TIMEOUT,
-                max_tokens=100
+                memory="Auto"
             )
-            
-            # Update conversation
-            if is_optimist_turn:
-                user_session.optimist_messages = updated_messages
-            else:
-                user_session.pessimist_messages = updated_messages
             
             # Extract the line (should start with "Optimist:" or "Pessimist:")
             lines = response.strip().split('\n')
@@ -347,13 +351,13 @@ async def run_true_alternation(
             
             debate_lines.append(debate_line)
             
-            # Add this line to the OTHER bot's conversation for context
-            other_messages.append({"role": "user", "content": f"The other debater said: {debate_line}"})
-            
-            if is_optimist_turn:
-                user_session.pessimist_messages = other_messages
-            else:
-                user_session.optimist_messages = other_messages
+            # Add this line to the OTHER bot's thread for context (no LLM call)
+            await backboard.send_message(
+                thread_id=other_thread,
+                content=f"The other debater said: {debate_line}",
+                send_to_llm=False,
+                memory="off"
+            )
             
             # Post to Discord using appropriate bot
             if is_optimist_turn:
@@ -380,11 +384,11 @@ async def run_true_alternation(
     optimist_advice_prompt = get_advice_prompt("optimist", full_debate)
     
     try:
-        optimist_advice, user_session.optimist_messages = await backboard.send_message(
-            messages=user_session.optimist_messages,
-            user_message=optimist_advice_prompt,
+        optimist_advice = await backboard.send_message(
+            thread_id=user_session.optimist_thread_id,
+            content=optimist_advice_prompt,
             timeout=TURN_TIMEOUT,
-            max_tokens=200
+            memory="Auto"
         )
     except Exception as e:
         logger.error(f"Optimist advice error: {e}")
@@ -399,11 +403,11 @@ async def run_true_alternation(
     pessimist_advice_prompt = get_advice_prompt("pessimist", full_debate)
     
     try:
-        pessimist_advice, user_session.pessimist_messages = await backboard.send_message(
-            messages=user_session.pessimist_messages,
-            user_message=pessimist_advice_prompt,
+        pessimist_advice = await backboard.send_message(
+            thread_id=user_session.pessimist_thread_id,
+            content=pessimist_advice_prompt,
             timeout=TURN_TIMEOUT,
-            max_tokens=200
+            memory="Auto"
         )
     except Exception as e:
         logger.error(f"Pessimist advice error: {e}")

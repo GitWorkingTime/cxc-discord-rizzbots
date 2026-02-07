@@ -6,8 +6,8 @@ from typing import List, Dict, Any
 @dataclass
 class UserSession:
     """Stores conversation context for a user's debate bots."""
-    optimist_messages: List[Dict[str, str]] = field(default_factory=list)
-    pessimist_messages: List[Dict[str, str]] = field(default_factory=list)
+    optimist_thread_id: str = ""
+    pessimist_thread_id: str = ""
     optimist_assistant_id: str = ""
     pessimist_assistant_id: str = ""
 
@@ -44,8 +44,8 @@ class Session:
     ) -> None:
         """Set session for a user."""
         self.users[user_id] = UserSession(
-            optimist_messages=[],
-            pessimist_messages=[],
+            optimist_thread_id="",
+            pessimist_thread_id="",
             optimist_assistant_id=optimist_assistant_id,
             pessimist_assistant_id=pessimist_assistant_id
         )

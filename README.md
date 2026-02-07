@@ -61,7 +61,8 @@ cp .env.example .env
 OPTIMIST_TOKEN=your_optimist_bot_token
 PESSIMIST_TOKEN=your_pessimist_bot_token
 BACKBOARD_API_KEY=your_backboard_api_key
-BACKBOARD_BASE_URL=https://api.openai.com/v1
+BACKBOARD_BASE_URL=https://app.backboard.io/api
+BACKBOARD_LLM_PROVIDER=openai
 ```
 
 4. Invite both bots to your Discord server with appropriate permissions:
