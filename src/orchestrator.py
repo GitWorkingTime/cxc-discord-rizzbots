@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class Orchestrator:
     """
     Coordinates both Discord bots and manages shared state.
@@ -20,7 +19,7 @@ class Orchestrator:
         self.optimist_bot: Optional['discord.Client'] = None
         self.pessimist_bot: Optional['discord.Client'] = None
         
-        # Message buffers: guild_id -> channel_id -> deque of messages
+        # Message buffers: guild_id -> channel_id -> deque of message dicts
         self.message_buffers: Dict[str, Dict[str, deque]] = {}
         self.buffer_size = 25
         
@@ -34,22 +33,78 @@ class Orchestrator:
         self.optimist_bot = optimist_bot
         self.pessimist_bot = pessimist_bot
     
-    def add_message(self, guild_id: str, channel_id: str, content: str) -> None:
-        """Add a message to the buffer for a channel."""
+    def add_message(self, guild_id: str, channel_id: str, message_data: Dict[str, str]) -> None:
+        """
+        Add a message to the buffer for a channel.
+        
+        Args:
+            guild_id: Discord guild ID
+            channel_id: Discord channel ID
+            message_data: Dict containing 'content', 'author_name', 'author_id', 'timestamp'
+        """
         if guild_id not in self.message_buffers:
             self.message_buffers[guild_id] = {}
         
         if channel_id not in self.message_buffers[guild_id]:
             self.message_buffers[guild_id][channel_id] = deque(maxlen=self.buffer_size)
         
-        self.message_buffers[guild_id][channel_id].append(content)
+        self.message_buffers[guild_id][channel_id].append(message_data)
     
-    def get_messages(self, guild_id: str, channel_id: str) -> List[str]:
-        """Get buffered messages for a channel."""
+    def get_messages(self, guild_id: str, channel_id: str) -> List[Dict[str, str]]:
+        """
+        Get buffered messages for a channel.
+        
+        Returns:
+            List of message dicts with 'content', 'author_name', 'author_id', 'timestamp'
+        """
         if guild_id in self.message_buffers:
             if channel_id in self.message_buffers[guild_id]:
                 return list(self.message_buffers[guild_id][channel_id])
         return []
+    
+    def format_messages_for_ai(self, messages: List[Dict[str, str]], target_user_id: Optional[str] = None) -> str:
+        """
+        Format buffered messages for AI consumption with clear user separation.
+        
+        Args:
+            messages: List of message dicts
+            target_user_id: Optional user ID to highlight/filter
+            
+        Returns:
+            Formatted string with clear user attribution
+        """
+        if not messages:
+            return ""
+        
+        formatted = []
+        for msg in messages:
+            author_name = msg.get('author_name', 'Unknown')
+            author_id = msg.get('author_id', '000000')
+            content = msg.get('content', '')
+            
+            # Format: [User: name (ID: id)]: message
+            formatted.append(f"[User: {author_name} (ID: {author_id})]: {content}")
+        
+        return "\n".join(formatted)
+    
+    def get_messages_by_user(self, guild_id: str, channel_id: str, user_id: str) -> List[Dict[str, str]]:
+        """
+        Get messages from a specific user only.
+        
+        Args:
+            guild_id: Discord guild ID
+            channel_id: Discord channel ID
+            user_id: Target user's Discord ID
+            
+        Returns:
+            List of message dicts from that user only
+        """
+        all_messages = self.get_messages(guild_id, channel_id)
+        return [msg for msg in all_messages if msg.get('author_id') == user_id]
+    
+    def get_user_message_count(self, guild_id: str, channel_id: str, user_id: str) -> int:
+        """Count how many messages a specific user has in the buffer."""
+        return len(self.get_messages_by_user(guild_id, channel_id, user_id))
     
     def can_analyze(self) -> bool:
         """Check if enough time has passed since last analysis."""

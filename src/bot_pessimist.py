@@ -35,7 +35,14 @@ class PessimistBot(commands.Bot):
             
             if channel_setup and str(message.channel.id) == channel_setup.general_channel_id:
                 # Buffer this message
-                orchestrator.add_message(guild_id, str(message.channel.id), message.content)
+                message_data = {
+                    'content': message.content,
+                    'author_name': message.author.name,
+                    'author_id': str(message.author.id),
+                    'timpestamp': message.created_at.isoformat()
+                }
+
+                orchestrator.add_message(guild_id, str(message.channel.id), message_data)
         
         await self.process_commands(message)
 
