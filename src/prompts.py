@@ -48,12 +48,11 @@ def get_advice_prompt(perspective: str, debate_history: str) -> str:
 
 {debate_history}
 
-Now provide exactly 3 pieces of advice in this format:
+Now provide exactly 1 pieces of advice in this format:
 
-Optimist Advice:
+
 1) [first piece of advice]
-2) [second piece of advice]
-3) [third piece of advice]
+
 
 Each piece should be specific, actionable, and based on the debate. Keep it PG and respectful."""
     
@@ -62,9 +61,9 @@ Each piece should be specific, actionable, and based on the debate. Keep it PG a
 
 {debate_history}
 
-Now provide exactly 3 pieces of advice in this format and in like 5 words max:
+Now provide exactly 1 pieces of advice in this format and in like 5 words max:
 
-Pessimist Advice:
+:
 1) [first piece of advice]
 
 Each piece should be specific, actionable, and based on the debate. Keep it PG and respectful."""
