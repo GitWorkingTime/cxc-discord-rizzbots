@@ -19,7 +19,7 @@ from prompts import (
 logger = logging.getLogger(__name__)
 
 # Constants
-DEBATE_TURNS = 20
+DEBATE_TURNS = 6
 ANALYSIS_TIMEOUT = 300.0  # 5 minutes total
 TURN_TIMEOUT = 30.0  # 30 seconds per turn
 
